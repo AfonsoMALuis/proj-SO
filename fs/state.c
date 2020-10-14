@@ -135,7 +135,7 @@ int inode_delete(int inumber) {
 int inode_get(int inumber, type *nType, union Data *data) {
     puts("antes do lock");
     printf("%d\n",inumber);
-    if ((&inode_table[inumber].mutex) != 0)
+    if ((&(inode_table[inumber].mutex)) != 0)
     {
         perror("Error locking inode_t mutex!");
         exit(1);
