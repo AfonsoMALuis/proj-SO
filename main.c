@@ -58,24 +58,24 @@ void processInput(FILE *inputFile){
                 if(insertCommand(line))
                     break;
                 return;
-            
+
             case 'l':
                 if(numTokens != 2)
                     errorParse();
                 if(insertCommand(line))
                     break;
                 return;
-            
+
             case 'd':
                 if(numTokens != 2)
                     errorParse();
                 if(insertCommand(line))
                     break;
                 return;
-            
+
             case '#':
                 break;
-            
+
             default: { /* error */
                 errorParse();
             }
@@ -124,7 +124,7 @@ void applyCommands(){
                         exit(EXIT_FAILURE);
                 }
                 break;
-            case 'l': 
+            case 'l':
                 searchResult = lookup(name);
                 if (searchResult >= 0)
                     printf("Search: %s found\n", name);

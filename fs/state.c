@@ -25,7 +25,6 @@ void inode_table_init() {
         inode_table[i].nodeType = T_NONE;
         inode_table[i].data.dirEntries = NULL;
         inode_table[i].data.fileContents = NULL;
-        printf("entra?\n");
         if (pthread_mutex_init(&inode_table[i].mutex, NULL) != 0){
                 perror("Error initializing global mutexes!\n");
                 exit(1);
