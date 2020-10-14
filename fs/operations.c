@@ -115,6 +115,7 @@ int lookup_sub_node(char *name, DirEntry *entries) {
  */
 int create(char *name, type nodeType){
 
+    puts("antes do print a");
 	int parent_inumber, child_inumber;
 	char *parent_name, *child_name, name_copy[MAX_FILE_NAME];
 	/* use for copy */
@@ -123,15 +124,16 @@ int create(char *name, type nodeType){
 
 	strcpy(name_copy, name);
 	split_parent_child_from_path(name_copy, &parent_name, &child_name);
-
+    puts("antes do print c");
 	parent_inumber = lookup(parent_name);
-
+    puts("antes do print b");
 	if (parent_inumber == FAIL) {
 		printf("failed to create %s, invalid parent dir %s\n",
 		        name, parent_name);
 		return FAIL;
 	}
 
+	puts("antes do print");
 	inode_get(parent_inumber, &pType, &pdata);
 
 	if(pType != T_DIRECTORY) {
@@ -250,9 +252,10 @@ int lookup(char *name) {
 	/* use for copy */
 	type nType;
 	union Data data;
-
+    puts("antes do lookup");
 	/* get root inode data */
 	inode_get(current_inumber, &nType, &data);
+    puts("depois do lookup");
 
 	char *path = strtok(full_path, delim);
 

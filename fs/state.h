@@ -40,6 +40,7 @@ union Data {
 typedef struct inode_t {    
 	type nodeType;
 	union Data data;
+    pthread_mutex_t mutex;
     /* more i-node attributes will be added in future exercises */
 } inode_t;
 

@@ -4,14 +4,14 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include "fs/operations.h"
 
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
-int numberThreads = 0;
-
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
+pthread_mutex_t mutexCommands;
 int numberCommands = 0;
 int headQueue = 0;
 
@@ -26,7 +26,7 @@ int insertCommand(char* data) {
 char* removeCommand() {
     if(numberCommands > 0){
         numberCommands--;
-        return inputCommands[headQueue++];  
+        return inputCommands[headQueue++];
     }
     return NULL;
 }
@@ -85,7 +85,16 @@ void processInput(FILE *inputFile){
 
 void applyCommands(){
     while (numberCommands > 0){
+        if (pthread_mutex_lock(&mutexCommands) != 0)
+        {
+            perror("Error locking commands mutex!");
+            exit(1);
+        }
         const char* command = removeCommand();
+        if (pthread_mutex_unlock(&mutexCommands) != 0){
+            perror("Error unlocking commands mutex!");
+            exit(1);
+        }
         if (command == NULL){
             continue;
         }
@@ -153,8 +162,27 @@ int main(int argc, char* argv[]) {
     processInput(inputFile);
     fclose(inputFile);
     gettimeofday(&start, NULL);
-    applyCommands();
-    outputFile = fopen(argv[2], "a");
+    //-----------------------Criacao de Tarefas--------------------------------
+    if (pthread_mutex_init(&mutexCommands, NULL) != 0){
+        perror("Error initializing global mutexes!\n");
+        exit(1);
+    }
+    int i, numThreads;
+    numThreads = atoi(argv[3]);
+    pthread_t tid[numThreads];
+    for (i=0; i<numThreads; i++) {
+        if (pthread_create (&tid[i], NULL, (void *(*)(void *)) applyCommands, NULL) != 0){
+            printf("Erro ao criar tarefa.\n");
+            return 1;
+        }
+        //printf("Lancou uma tarefa\n");
+    }
+    for (i=0; i<numThreads; i++){
+        pthread_join(tid[i], NULL);
+    }
+    //applyCommands((int) argv[3]);
+    //-----------------Fim de execucao de Tarefas------------------------------
+    outputFile = fopen(argv[2], "w");
     print_tecnicofs_tree(outputFile);
     fclose(outputFile);
 

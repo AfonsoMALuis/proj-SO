@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "state.h"
 #include "../tecnicofs-api-constants.h"
 
@@ -24,6 +25,10 @@ void inode_table_init() {
         inode_table[i].nodeType = T_NONE;
         inode_table[i].data.dirEntries = NULL;
         inode_table[i].data.fileContents = NULL;
+        if (pthread_mutex_init(&inode_table[i].mutex, NULL) != 0){
+                perror("Error initializing global mutexes!\n");
+                exit(1);
+            }
     }
 }
 
@@ -50,11 +55,16 @@ void inode_table_destroy() {
  *  inumber: identifier of the new i-node, if successfully created
  *     FAIL: if an error occurs
  */
-int inode_create(type nType) {
+int inode_create(type nType){
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
+        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error locking inode_t mutex!");
+            exit(1);
+        }
         if (inode_table[inumber].nodeType == T_NONE) {
             inode_table[inumber].nodeType = nType;
 
@@ -71,6 +81,11 @@ int inode_create(type nType) {
             }
             return inumber;
         }
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
     }
     return FAIL;
 }
@@ -82,6 +97,11 @@ int inode_create(type nType) {
  * Returns: SUCCESS or FAIL
  */
 int inode_delete(int inumber) {
+    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error locking inode_t mutex!");
+        exit(1);
+    }
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -94,6 +114,12 @@ int inode_delete(int inumber) {
     /* see inode_table_destroy function */
     if (inode_table[inumber].data.dirEntries)
         free(inode_table[inumber].data.dirEntries);
+
+    if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error unlocking inode_t mutex!");
+        exit(1);
+    }
     return SUCCESS;
 }
 
@@ -107,6 +133,13 @@ int inode_delete(int inumber) {
  * Returns: SUCCESS or FAIL
  */
 int inode_get(int inumber, type *nType, union Data *data) {
+    puts("antes do lock");
+    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error locking inode_t mutex!");
+        exit(1);
+    }
+    puts("depois do lock");
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -121,6 +154,12 @@ int inode_get(int inumber, type *nType, union Data *data) {
     if (data)
         *data = inode_table[inumber].data;
 
+    puts("antes do unlock");
+    if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error unlocking inode_t mutex!");
+        exit(1);
+    }
     return SUCCESS;
 }
 
@@ -133,6 +172,10 @@ int inode_get(int inumber, type *nType, union Data *data) {
  * Returns: SUCCESS or FAIL
  */
 int dir_reset_entry(int inumber, int sub_inumber) {
+    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0){
+        perror("Error locking inode_t mutex!");
+        exit(1);
+    }
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -159,6 +202,11 @@ int dir_reset_entry(int inumber, int sub_inumber) {
             return SUCCESS;
         }
     }
+    if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error unlocking inode_t mutex!");
+        exit(1);
+    }
     return FAIL;
 }
 
@@ -172,6 +220,11 @@ int dir_reset_entry(int inumber, int sub_inumber) {
  * Returns: SUCCESS or FAIL
  */
 int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
+    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error locking inode_t mutex!");
+        exit(1);
+    }
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -202,6 +255,11 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
             strcpy(inode_table[inumber].data.dirEntries[i].name, sub_name);
             return SUCCESS;
         }
+    }
+    if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+    {
+        perror("Error unlocking inode_t mutex!");
+        exit(1);
     }
     return FAIL;
 }
