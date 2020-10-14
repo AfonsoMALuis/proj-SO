@@ -71,7 +71,7 @@ int inode_create(type nType){
             if (nType == T_DIRECTORY) {
                 /* Initializes entry table */
                 inode_table[inumber].data.dirEntries = malloc(sizeof(DirEntry) * MAX_DIR_ENTRIES);
-                
+
                 for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
                     inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
                 }
@@ -108,7 +108,7 @@ int inode_delete(int inumber) {
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_delete: invalid inumber\n");
         return FAIL;
-    } 
+    }
 
     inode_table[inumber].nodeType = T_NONE;
     /* see inode_table_destroy function */
@@ -134,6 +134,7 @@ int inode_delete(int inumber) {
  */
 int inode_get(int inumber, type *nType, union Data *data) {
     puts("antes do lock");
+    printf("%d\n",inumber);
     if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
     {
         perror("Error locking inode_t mutex!");
@@ -194,7 +195,7 @@ int dir_reset_entry(int inumber, int sub_inumber) {
         return FAIL;
     }
 
-    
+
     for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
         if (inode_table[inumber].data.dirEntries[i].inumber == sub_inumber) {
             inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
@@ -216,7 +217,7 @@ int dir_reset_entry(int inumber, int sub_inumber) {
  * Input:
  *  - inumber: identifier of the i-node
  *  - sub_inumber: identifier of the sub i-node entry
- *  - sub_name: name of the sub i-node entry 
+ *  - sub_name: name of the sub i-node entry
  * Returns: SUCCESS or FAIL
  */
 int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
@@ -248,7 +249,7 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
                entry name must be non-empty\n");
         return FAIL;
     }
-    
+
     for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
         if (inode_table[inumber].data.dirEntries[i].inumber == FREE_INODE) {
             inode_table[inumber].data.dirEntries[i].inumber = sub_inumber;
