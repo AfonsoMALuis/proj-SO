@@ -25,6 +25,7 @@ void inode_table_init() {
         inode_table[i].nodeType = T_NONE;
         inode_table[i].data.dirEntries = NULL;
         inode_table[i].data.fileContents = NULL;
+        printf("entra?\n");
         if (pthread_mutex_init(&inode_table[i].mutex, NULL) != 0){
                 perror("Error initializing global mutexes!\n");
                 exit(1);
@@ -135,7 +136,7 @@ int inode_delete(int inumber) {
 int inode_get(int inumber, type *nType, union Data *data) {
     puts("antes do lock");
     printf("%d\n",inumber);
-    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0)
+    if ((&inode_table[inumber].mutex) != 0)
     {
         perror("Error locking inode_t mutex!");
         exit(1);
