@@ -10,6 +10,58 @@ inode_t inode_table[INODE_TABLE_SIZE];
 
 
 /*
+ * Locks mutexes/wrlocks
+ */
+void mutex_and_wrlock (int inumber, char strategy[7]){
+    if (strcmp(strategy, "mutex")==0) {
+        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
+            perror("Error locking inode_t mutex!");
+            exit(1);
+        }
+    } else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
+            perror("Error locking inode_t rwlock!");
+            exit(1);
+        }
+    }
+}
+
+/*
+ * Locks mutexes/rdlocks
+ */
+void mutex_and_rdlock(int inumber, char strategy[7]) {
+    if (strcmp(strategy, "mutex") == 0) {
+        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
+            perror("Error locking inode_t mutex!");
+            exit(1);
+        }
+    } else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_rdlock(&inode_table[inumber].rwlock) != 0) {
+            perror("Error locking inode_t rwlock!");
+            exit(1);
+        }
+    }
+}
+
+/*
+ * Unlocks mutexes/rwlocks
+ */
+void unlock (int inumber, char strategy[7]){
+    if (strcmp(strategy, "mutex")==0) {
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
+    } else if (strcmp(strategy, "rwlock") == 0){
+        if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
+            perror("Error unlocking inode_t rwlock!");
+            exit(1);
+        }
+    }
+}
+
+
+/*
  * Sleeps for synchronization testing.
  */
 void insert_delay(int cycles) {
@@ -59,22 +111,12 @@ void inode_table_destroy() {
  *  inumber: identifier of the new i-node, if successfully created
  *     FAIL: if an error occurs
  */
-int inode_create(type nType, char strategy[8]){
+int inode_create(type nType, char strategy[7]){
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
-                perror("Error locking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0) {
-            if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
-                perror("Error locking inode_t rwlock!");
-                exit(1);
-            }
-        }
+        mutex_and_wrlock(inumber, strategy);
         if (inode_table[inumber].nodeType == T_NONE) {
             inode_table[inumber].nodeType = nType;
 
@@ -89,30 +131,10 @@ int inode_create(type nType, char strategy[8]){
             else {
                 inode_table[inumber].data.fileContents = NULL;
             }
-            if (strcmp(strategy, "mutex")==0) {
-                if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                    perror("Error unlocking inode_t mutex!");
-                    exit(1);
-                }
-            } else if (strcmp(strategy, "rwlock") == 0){
-                if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-            }
+            unlock(inumber, strategy);
             return inumber;
         }
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                perror("Error unlocking inode_t rwlock!");
-                exit(1);
-            }
-        }
+        unlock(inumber, strategy);
     }
     return FAIL;
 }
@@ -123,34 +145,14 @@ int inode_create(type nType, char strategy[8]){
  *  - inumber: identifier of the i-node
  * Returns: SUCCESS or FAIL
  */
-int inode_delete(int inumber, char strategy[8]) {
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
-            perror("Error locking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
-                perror("Error locking inode_t rwlock!");
-                exit(1);
-            }
-    }
+int inode_delete(int inumber, char strategy[7]) {
+    mutex_and_wrlock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_delete: invalid inumber\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                perror("Error unlocking inode_t rwlock!");
-                exit(1);
-            }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
@@ -159,17 +161,7 @@ int inode_delete(int inumber, char strategy[8]) {
     if (inode_table[inumber].data.dirEntries)
         free(inode_table[inumber].data.dirEntries);
 
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-            perror("Error unlocking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-            perror("Error unlocking inode_t rwlock!");
-            exit(1);
-        }
-    }
+    unlock(inumber, strategy);
     return SUCCESS;
 }
 
@@ -182,33 +174,13 @@ int inode_delete(int inumber, char strategy[8]) {
  *  - data: pointer to data
  * Returns: SUCCESS or FAIL
  */
-int inode_get(int inumber, type *nType, union Data *data, char strategy[8]) {
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
-            perror("Error locking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_rdlock(&inode_table[inumber].rwlock) != 0) {
-            perror("Error locking inode_t rwlock!");
-            exit(1);
-        }
-    }
+int inode_get(int inumber, type *nType, union Data *data, char strategy[7]) {
+    mutex_and_rdlock(inumber, strategy);
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_get: invalid inumber %d\n", inumber);
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                perror("Error unlocking inode_t rwlock!");
-                exit(1);
-            }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
@@ -218,17 +190,7 @@ int inode_get(int inumber, type *nType, union Data *data, char strategy[8]) {
     if (data)
         *data = inode_table[inumber].data;
 
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-            perror("Error unlocking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-            perror("Error unlocking inode_t rwlock!");
-            exit(1);
-        }
-    }
+    unlock(inumber, strategy);
     return SUCCESS;
 }
 
@@ -240,66 +202,26 @@ int inode_get(int inumber, type *nType, union Data *data, char strategy[8]) {
  *  - sub_inumber: identifier of the sub i-node entry
  * Returns: SUCCESS or FAIL
  */
-int dir_reset_entry(int inumber, int sub_inumber, char strategy[8]) {
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
-            perror("Error locking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
-                perror("Error locking inode_t rwlock!");
-                exit(1);
-            }
-    }
+int dir_reset_entry(int inumber, int sub_inumber, char strategy[7]) {
+    mutex_and_wrlock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid inumber\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_reset_entry: can only reset entry to directories\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
     if ((sub_inumber < FREE_INODE) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid entry inumber\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
@@ -308,31 +230,11 @@ int dir_reset_entry(int inumber, int sub_inumber, char strategy[8]) {
         if (inode_table[inumber].data.dirEntries[i].inumber == sub_inumber) {
             inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
             inode_table[inumber].data.dirEntries[i].name[0] = '\0';
-            if (strcmp(strategy, "mutex")==0) {
-                if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                    perror("Error unlocking inode_t mutex!");
-                    exit(1);
-                }
-            } else if (strcmp(strategy, "rwlock") == 0){
-                if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-            }
+            unlock(inumber, strategy);
             return SUCCESS;
         }
     }
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-            perror("Error unlocking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-    }
+    unlock(inumber, strategy);
     return FAIL;
 }
 
@@ -345,82 +247,32 @@ int dir_reset_entry(int inumber, int sub_inumber, char strategy[8]) {
  *  - sub_name: name of the sub i-node entry
  * Returns: SUCCESS or FAIL
  */
-int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[8]) {
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
-            perror("Error locking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
-                perror("Error locking inode_t rwlock!");
-                exit(1);
-            }
-    }
+int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[7]) {
+    mutex_and_wrlock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid inumber\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_add_entry: can only add entry to directories\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
     if ((sub_inumber < 0) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid entry inumber\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
     if (strlen(sub_name) == 0 ) {
         printf("inode_add_entry: entry name must be non-empty\n");
-        if (strcmp(strategy, "mutex")==0) {
-            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                perror("Error unlocking inode_t mutex!");
-                exit(1);
-            }
-        } else if (strcmp(strategy, "rwlock") == 0){
-            if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-        }
+        unlock(inumber, strategy);
         return FAIL;
     }
 
@@ -428,31 +280,11 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[8]
         if (inode_table[inumber].data.dirEntries[i].inumber == FREE_INODE) {
             inode_table[inumber].data.dirEntries[i].inumber = sub_inumber;
             strcpy(inode_table[inumber].data.dirEntries[i].name, sub_name);
-            if (strcmp(strategy, "mutex")==0) {
-                if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-                    perror("Error unlocking inode_t mutex!");
-                    exit(1);
-                }
-            } else if (strcmp(strategy, "rwlock") == 0){
-                if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-            }
+            unlock(inumber, strategy);
             return SUCCESS;
         }
     }
-    if (strcmp(strategy, "mutex")==0) {
-        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
-            perror("Error unlocking inode_t mutex!");
-            exit(1);
-        }
-    } else if (strcmp(strategy, "rwlock") == 0){
-        if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
-                    perror("Error unlocking inode_t rwlock!");
-                    exit(1);
-                }
-    }
+    unlock(inumber, strategy);
     return FAIL;
 }
 
