@@ -24,9 +24,22 @@ int insertCommand(char* data) {
 }
 
 char* removeCommand() {
+    if (pthread_mutex_lock(&mutexCommands) != 0)
+    {
+        perror("Error locking commands mutex!");
+        exit(1);
+    }
     if(numberCommands > 0){
         numberCommands--;
+        if (pthread_mutex_unlock(&mutexCommands) != 0){
+            perror("Error unlocking commands mutex!");
+            exit(1);
+        }
         return inputCommands[headQueue++];
+    }
+    if (pthread_mutex_unlock(&mutexCommands) != 0){
+        perror("Error unlocking commands mutex!");
+        exit(1);
     }
     return NULL;
 }
@@ -85,16 +98,7 @@ void processInput(FILE *inputFile){
 
 void applyCommands(){
     while (numberCommands > 0){
-        if (pthread_mutex_lock(&mutexCommands) != 0)
-        {
-            perror("Error locking commands mutex!");
-            exit(1);
-        }
         const char* command = removeCommand();
-        if (pthread_mutex_unlock(&mutexCommands) != 0){
-            perror("Error unlocking commands mutex!");
-            exit(1);
-        }
         if (command == NULL){
             continue;
         }
