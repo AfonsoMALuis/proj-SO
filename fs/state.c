@@ -145,8 +145,7 @@ int inode_delete(int inumber) {
 int inode_get(int inumber, type *nType, union Data *data) {
     puts("antes do lock");
     printf("%d\n",inumber);
-    if ((&(inode_table[inumber].mutex)) != 0)
-    {
+    if ((&(inode_table[inumber].mutex)) != 0){
     //puts("antes do lock");
     if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0){
         perror("Error locking inode_t mutex!");
@@ -154,6 +153,8 @@ int inode_get(int inumber, type *nType, union Data *data) {
     }
     //puts("depois do lock");
     /* Used for testing synchronization speedup */
+
+    }
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
