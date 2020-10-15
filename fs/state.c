@@ -148,10 +148,8 @@ int inode_get(int inumber, type *nType, union Data *data) {
     printf("%d\n",inumber);
     if ((&(inode_table[inumber].mutex)) != 0)
     {
-=======
     //puts("antes do lock");
     if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0){
->>>>>>> fc7c7ab0118f248b8183a9b5fc65d4ccbfa7aa02
         perror("Error locking inode_t mutex!");
         exit(1);
     }
