@@ -143,8 +143,6 @@ int inode_delete(int inumber) {
  * Returns: SUCCESS or FAIL
  */
 int inode_get(int inumber, type *nType, union Data *data) {
-    puts("antes do lock");
-    printf("%d\n",inumber);
     if ((&(inode_table[inumber].mutex)) != 0){
     //puts("antes do lock");
     if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0){
