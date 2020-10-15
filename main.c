@@ -96,7 +96,7 @@ void processInput(FILE *inputFile){
     }
 }
 
-void applyCommands(){
+void applyCommands(char *strategy){
     while (numberCommands > 0){
         const char* command = removeCommand();
         if (command == NULL){
@@ -117,11 +117,11 @@ void applyCommands(){
                 switch (type) {
                     case 'f':
                         printf("Create file: %s\n", name);
-                        create(name, T_FILE);
+                        create(name, T_FILE, strategy);
                         break;
                     case 'd':
                         printf("Create directory: %s\n", name);
-                        create(name, T_DIRECTORY);
+                        create(name, T_DIRECTORY, strategy);
                         break;
                     default:
                         fprintf(stderr, "Error: invalid node type\n");
@@ -129,7 +129,7 @@ void applyCommands(){
                 }
                 break;
             case 'l':
-                searchResult = lookup(name);
+                searchResult = lookup(name, strategy);
                 if (searchResult >= 0)
                     printf("Search: %s found\n", name);
                 else
@@ -137,7 +137,7 @@ void applyCommands(){
                 break;
             case 'd':
                 printf("Delete: %s\n", name);
-                delete(name);
+                delete(name, strategy);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -149,7 +149,15 @@ void applyCommands(){
 
 int main(int argc, char* argv[]) {
     if (argc != 5){
-        printf("A função tem de ter 5 argumentos");
+        printf("A função tem de ter 5 argumentos\n");
+        return (-1);
+    }
+    if (strcmp(argv[4], "nosync") == 0 && strcmp(argv[3], "1") != 0){
+        printf("Quando se escolhe a estratégia \"nosync\", deve-se escolher apenas 1 thread\n");
+        return (-1);
+    }
+    if (strcmp(argv[4], "nosync") != 0 && strcmp(argv[4], "mutex") != 0 && strcmp(argv[4], "rwlock") != 0){
+        printf("A estratégia escolhida tem de ser \"nosync\", \"mutex\" ou \"rwlock\"\n");
         return (-1);
     }
     struct timeval start, end;
@@ -175,11 +183,10 @@ int main(int argc, char* argv[]) {
     numThreads = atoi(argv[3]);
     pthread_t tid[numThreads];
     for (i=0; i<numThreads; i++) {
-        if (pthread_create (&tid[i], NULL, (void *(*)(void *)) applyCommands, NULL) != 0){
+        if (pthread_create (&tid[i], NULL, (void *(*)(void *)) applyCommands, argv[4]) != 0){
             printf("Erro ao criar tarefa.\n");
             return 1;
         }
-        //printf("Lancou uma tarefa\n");
     }
     for (i=0; i<numThreads; i++){
         pthread_join(tid[i], NULL);
