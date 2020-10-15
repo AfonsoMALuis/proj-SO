@@ -79,6 +79,11 @@ int inode_create(type nType){
             else {
                 inode_table[inumber].data.fileContents = NULL;
             }
+            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+            {
+                perror("Error unlocking inode_t mutex!");
+                exit(1);
+            }
             return inumber;
         }
         if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
@@ -107,6 +112,11 @@ int inode_delete(int inumber) {
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_delete: invalid inumber\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
@@ -133,19 +143,22 @@ int inode_delete(int inumber) {
  * Returns: SUCCESS or FAIL
  */
 int inode_get(int inumber, type *nType, union Data *data) {
-    puts("antes do lock");
-    printf("%d\n",inumber);
-    if ((&inode_table[inumber].mutex) != 0)
-    {
+    //puts("antes do lock");
+    if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0){
         perror("Error locking inode_t mutex!");
         exit(1);
     }
-    puts("depois do lock");
+    //puts("depois do lock");
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_get: invalid inumber %d\n", inumber);
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
@@ -155,7 +168,7 @@ int inode_get(int inumber, type *nType, union Data *data) {
     if (data)
         *data = inode_table[inumber].data;
 
-    puts("antes do unlock");
+    //puts("antes do unlock");
     if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
     {
         perror("Error unlocking inode_t mutex!");
@@ -182,16 +195,31 @@ int dir_reset_entry(int inumber, int sub_inumber) {
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid inumber\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_reset_entry: can only reset entry to directories\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
     if ((sub_inumber < FREE_INODE) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid entry inumber\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
@@ -200,6 +228,11 @@ int dir_reset_entry(int inumber, int sub_inumber) {
         if (inode_table[inumber].data.dirEntries[i].inumber == sub_inumber) {
             inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
             inode_table[inumber].data.dirEntries[i].name[0] = '\0';
+            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+            {
+                perror("Error unlocking inode_t mutex!");
+                exit(1);
+            }
             return SUCCESS;
         }
     }
@@ -231,22 +264,42 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid inumber\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_add_entry: can only add entry to directories\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
     if ((sub_inumber < 0) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid entry inumber\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
     if (strlen(sub_name) == 0 ) {
         printf("inode_add_entry: \
                entry name must be non-empty\n");
+        if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+        {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
         return FAIL;
     }
 
@@ -254,6 +307,11 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
         if (inode_table[inumber].data.dirEntries[i].inumber == FREE_INODE) {
             inode_table[inumber].data.dirEntries[i].inumber = sub_inumber;
             strcpy(inode_table[inumber].data.dirEntries[i].name, sub_name);
+            if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0)
+            {
+                perror("Error unlocking inode_t mutex!");
+                exit(1);
+            }
             return SUCCESS;
         }
     }
