@@ -49,12 +49,12 @@ typedef struct inode_t {
 void insert_delay(int cycles);
 void inode_table_init();
 void inode_table_destroy();
-int inode_create(type nType, char strategy[8]);
-int inode_delete(int inumber, char strategy[8]);
-int inode_get(int inumber, type *nType, union Data *data, char strategy[8]);
+int inode_create(type nType, char strategy[7]);
+int inode_delete(int inumber, char strategy[7]);
+int inode_get(int inumber, type *nType, union Data *data, char strategy[7]);
 int inode_set_file(int inumber, char *fileContents, int len);
-int dir_reset_entry(int inumber, int sub_inumber, char strategy[8]);
-int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[8]);
+int dir_reset_entry(int inumber, int sub_inumber, char strategy[7]);
+int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[7]);
 void inode_print_tree(FILE *fp, int inumber, char *name);
 
 

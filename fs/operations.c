@@ -10,6 +10,7 @@
  *  - parent: reference to a char*, to store parent path
  *  - child: reference to a char*, to store child file name
  */
+
 void split_parent_child_from_path(char * path, char ** parent, char ** child) {
 
 	int n_slashes = 0, last_slash_location = 0;
@@ -115,7 +116,7 @@ int lookup_sub_node(char *name, DirEntry *entries) {
  */
 int create(char *name, type nodeType, char *strategy){
 	int parent_inumber, child_inumber;
-	char *parent_name, *child_name, name_copy[MAX_FILE_NAME], strat[8];
+	char *parent_name, *child_name, name_copy[MAX_FILE_NAME], strat[7];
 	/* use for copy */
 	type pType;
 	union Data pdata;
@@ -170,7 +171,7 @@ int create(char *name, type nodeType, char *strategy){
 int delete(char *name, char *strategy){
 
 	int parent_inumber, child_inumber;
-	char *parent_name, *child_name, name_copy[MAX_FILE_NAME], strat[8];
+	char *parent_name, *child_name, name_copy[MAX_FILE_NAME], strat[7];
 	/* use for copy */
 	type pType, cType;
 	union Data pdata, cdata;
@@ -237,7 +238,7 @@ int delete(char *name, char *strategy){
  *     FAIL: otherwise
  */
 int lookup(char *name, char *strategy) {
-	char full_path[MAX_FILE_NAME], strat[8];
+	char full_path[MAX_FILE_NAME], strat[7];
 	char delim[] = "/";
 
 	strcpy(full_path, name);
