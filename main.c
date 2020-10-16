@@ -24,8 +24,7 @@ int insertCommand(char* data) {
 }
 
 char* removeCommand() {
-    if (pthread_mutex_lock(&mutexCommands) != 0)
-    {
+    if (pthread_mutex_lock(&mutexCommands) != 0){
         perror("Error locking commands mutex!");
         exit(1);
     }
@@ -97,11 +96,12 @@ void processInput(FILE *inputFile){
 }
 
 void applyCommands(char *strategy){
-    while (numberCommands > 0){
+    while (1){
         const char* command = removeCommand();
         if (command == NULL){
-            continue;
+            break;
         }
+
 
         char token, type;
         char name[MAX_INPUT_SIZE];
