@@ -11,9 +11,126 @@
 #define MAX_INPUT_SIZE 100
 
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
-pthread_mutex_t mutexCommands;
+pthread_mutex_t mutexCommands, globalMutex;
+pthread_rwlock_t globalRWlock;
 int numberCommands = 0;
 int headQueue = 0;
+
+
+/*
+ * Initializes the locks according to the strategy
+ */
+void init_locks(char *strategy){
+    if (pthread_mutex_init(&mutexCommands, NULL) != 0){
+        perror("Error initializing commands mutex!\n");
+        exit(1);
+    }
+    if (strcmp(strategy, "mutex") == 0) {
+        if (pthread_mutex_init(&globalMutex, NULL) != 0) {
+            perror("Error initializing global mutex!\n");
+            exit(1);
+        }
+    }
+    else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_init(&globalRWlock, NULL) != 0) {
+            perror("Error initializing global rwlock!\n");
+            exit(1);
+        }
+    }
+}
+
+/*
+ * Destroys the locks according to the strategy
+ */
+void destroy_locks(char *strategy){
+    if (pthread_mutex_destroy(&mutexCommands) != 0){
+        perror("Error destroying commands mutex!\n");
+        exit(1);
+    }
+    if (strcmp(strategy, "mutex") == 0) {
+        if (pthread_mutex_destroy(&globalMutex) != 0) {
+            perror("Error destroying global mutex!\n");
+            exit(1);
+        }
+    }
+    else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_destroy(&globalRWlock) != 0) {
+            perror("Error destroying global rwlock!\n");
+            exit(1);
+        }
+    }
+}
+
+/*
+ * Locks mutexes/wrlocks
+ */
+void mutex_or_write_lock (char *strategy){
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex")==0) {
+        if (pthread_mutex_lock(&globalMutex) != 0) {
+            perror("Error locking inode_t mutex!");
+            exit(1);
+        }
+    }
+    else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_wrlock(&globalRWlock) != 0){
+            perror("Error locking inode_t rwlock!");
+            exit(1);
+        }
+    }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
+    }
+}
+
+/*
+ * Locks mutexes/rdlocks
+ */
+void mutex_or_read_lock(char *strategy) {
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex") == 0) {
+        if (pthread_mutex_lock(&globalMutex) != 0) {
+            perror("Error locking inode_t mutex!");
+            exit(1);
+        }
+    } else if (strcmp(strategy, "rwlock") == 0) {
+        if (pthread_rwlock_rdlock(&globalRWlock) != 0) {
+            perror("Error locking inode_t rwlock!");
+            exit(1);
+        }
+    }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
+    }
+}
+
+/*
+ * Unlocks mutexes/rwlocks
+ */
+void unlock (char *strategy){
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex")==0) {
+        if (pthread_mutex_unlock(&globalMutex) != 0) {
+            perror("Error unlocking inode_t mutex!");
+            exit(1);
+        }
+    }
+    else if (strcmp(strategy, "rwlock") == 0){
+        if (pthread_rwlock_unlock(&globalRWlock) != 0) {
+            perror("Error unlocking inode_t rwlock!");
+            exit(1);
+        }
+    }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
+    }
+}
 
 int insertCommand(char* data) {
     if(numberCommands != MAX_COMMANDS) {
@@ -97,10 +214,10 @@ void processInput(FILE *inputFile){
 }
 
 void applyCommands(char *strategy){
-    while (numberCommands > 0){
+    while (1){
         const char* command = removeCommand();
         if (command == NULL){
-            continue;
+            break;
         }
 
         char token, type;
@@ -117,11 +234,15 @@ void applyCommands(char *strategy){
                 switch (type) {
                     case 'f':
                         printf("Create file: %s\n", name);
-                        create(name, T_FILE, strategy);
+                        mutex_or_write_lock(strategy);
+                        create(name, T_FILE);
+                        unlock(strategy);
                         break;
                     case 'd':
                         printf("Create directory: %s\n", name);
-                        create(name, T_DIRECTORY, strategy);
+                        mutex_or_write_lock(strategy);
+                        create(name, T_DIRECTORY);
+                        unlock(strategy);
                         break;
                     default:
                         fprintf(stderr, "Error: invalid node type\n");
@@ -129,7 +250,9 @@ void applyCommands(char *strategy){
                 }
                 break;
             case 'l':
-                searchResult = lookup(name, strategy);
+                mutex_or_read_lock(strategy);
+                searchResult = lookup(name);
+                unlock(strategy);
                 if (searchResult >= 0)
                     printf("Search: %s found\n", name);
                 else
@@ -137,7 +260,9 @@ void applyCommands(char *strategy){
                 break;
             case 'd':
                 printf("Delete: %s\n", name);
-                delete(name, strategy);
+                mutex_or_write_lock(strategy);
+                delete(name);
+                unlock(strategy);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -162,7 +287,7 @@ int main(int argc, char* argv[]) {
     }
     struct timeval start, end;
     /* init filesystem */
-    init_fs(argv[4]);
+    init_fs();
 
     /* process input and print tree */
     FILE *inputFile, *outputFile;
@@ -175,10 +300,7 @@ int main(int argc, char* argv[]) {
     fclose(inputFile);
     gettimeofday(&start, NULL);
     //-----------------------Criacao de Tarefas--------------------------------
-    if (pthread_mutex_init(&mutexCommands, NULL) != 0){
-        perror("Error initializing global mutexes!\n");
-        exit(1);
-    }
+    init_locks(argv[4]);
     int i, numThreads;
     numThreads = atoi(argv[3]);
     pthread_t tid[numThreads];
@@ -198,7 +320,8 @@ int main(int argc, char* argv[]) {
     fclose(outputFile);
 
     /* release allocated memory */
-    destroy_fs(argv[4]);
+    destroy_fs();
+    destroy_locks(argv[4]);
     gettimeofday(&end, NULL);
     printf("TecnicoFS completed in %.4lf seconds\n",
            ((end.tv_sec + end.tv_usec * (1e-6))) -
