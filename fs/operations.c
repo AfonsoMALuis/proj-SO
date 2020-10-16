@@ -44,11 +44,13 @@ void split_parent_child_from_path(char * path, char ** parent, char ** child) {
 /*
  * Initializes tecnicofs and creates root node.
  */
-void init_fs() {
-	inode_table_init();
+void init_fs(char *strategy) {
+    char strat[7];
+    strcpy(strat, strategy);
+	inode_table_init(strat);
 	
 	/* create root inode */
-	int root = inode_create(T_DIRECTORY, "");
+	int root = inode_create(T_DIRECTORY, strategy);
 	
 	if (root != FS_ROOT) {
 		printf("failed to create node for tecnicofs root\n");
@@ -60,8 +62,10 @@ void init_fs() {
 /*
  * Destroy tecnicofs and inode table.
  */
-void destroy_fs() {
-	inode_table_destroy();
+void destroy_fs(char *strategy) {
+    char strat[7];
+    strcpy(strat, strategy);
+	inode_table_destroy(strat);
 }
 
 

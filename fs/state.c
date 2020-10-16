@@ -12,25 +12,34 @@ inode_t inode_table[INODE_TABLE_SIZE];
 /*
  * Locks mutexes/wrlocks
  */
-void mutex_and_wrlock (int inumber, char strategy[7]){
-    if (strcmp(strategy, "mutex")==0) {
+void mutex_and_write_lock (int inumber, char strategy[7]){
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex")==0) {
         if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
             perror("Error locking inode_t mutex!");
             exit(1);
         }
-    } else if (strcmp(strategy, "rwlock") == 0) {
+    }
+    else if (strcmp(strategy, "rwlock") == 0) {
         if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0){
             perror("Error locking inode_t rwlock!");
             exit(1);
         }
+    }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
     }
 }
 
 /*
  * Locks mutexes/rdlocks
  */
-void mutex_and_rdlock(int inumber, char strategy[7]) {
-    if (strcmp(strategy, "mutex") == 0) {
+void mutex_and_read_lock(int inumber, char strategy[7]) {
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex") == 0) {
         if (pthread_mutex_lock(&inode_table[inumber].mutex) != 0) {
             perror("Error locking inode_t mutex!");
             exit(1);
@@ -41,22 +50,33 @@ void mutex_and_rdlock(int inumber, char strategy[7]) {
             exit(1);
         }
     }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
+    }
 }
 
 /*
  * Unlocks mutexes/rwlocks
  */
 void unlock (int inumber, char strategy[7]){
-    if (strcmp(strategy, "mutex")==0) {
+    if (strcmp(strategy, "nosync") == 0){
+    }
+    else if (strcmp(strategy, "mutex")==0) {
         if (pthread_mutex_unlock(&inode_table[inumber].mutex) != 0) {
             perror("Error unlocking inode_t mutex!");
             exit(1);
         }
-    } else if (strcmp(strategy, "rwlock") == 0){
+    }
+    else if (strcmp(strategy, "rwlock") == 0){
         if (pthread_rwlock_unlock(&inode_table[inumber].rwlock) != 0) {
             perror("Error unlocking inode_t rwlock!");
             exit(1);
         }
+    }
+    else {
+        perror("Unknown strategy utilized\n");
+        exit(1);
     }
 }
 
@@ -72,17 +92,27 @@ void insert_delay(int cycles) {
 /*
  * Initializes the i-nodes table.
  */
-void inode_table_init() {
+void inode_table_init(char strategy[7]) {
     for (int i = 0; i < INODE_TABLE_SIZE; i++) {
         inode_table[i].nodeType = T_NONE;
         inode_table[i].data.dirEntries = NULL;
         inode_table[i].data.fileContents = NULL;
-        if (pthread_mutex_init(&inode_table[i].mutex, NULL) != 0){
+        if (strcmp(strategy, "nosync") == 0){
+        }
+        else if (strcmp(strategy, "mutex") == 0) {
+            if (pthread_mutex_init(&inode_table[i].mutex, NULL) != 0) {
                 perror("Error initializing global mutexes!\n");
                 exit(1);
+            }
         }
-        if (pthread_rwlock_init(&inode_table[i].rwlock, NULL) != 0){
-            perror("Error initializing the rwlocks!\n");
+        else if (strcmp(strategy, "rwlock") == 0) {
+            if (pthread_rwlock_init(&inode_table[i].rwlock, NULL) != 0) {
+                perror("Error initializing the rwlocks!\n");
+                exit(1);
+            }
+        }
+        else {
+            perror("Unknown strategy utilized\n");
             exit(1);
         }
     }
@@ -92,13 +122,31 @@ void inode_table_init() {
  * Releases the allocated memory for the i-nodes tables.
  */
 
-void inode_table_destroy() {
+void inode_table_destroy(char strategy[7]) {
     for (int i = 0; i < INODE_TABLE_SIZE; i++) {
         if (inode_table[i].nodeType != T_NONE) {
             /* as data is an union, the same pointer is used for both dirEntries and fileContents */
             /* just release one of them */
-	  if (inode_table[i].data.dirEntries)
-            free(inode_table[i].data.dirEntries);
+            if (inode_table[i].data.dirEntries)
+                free(inode_table[i].data.dirEntries);
+        }
+        if (strcmp(strategy, "nosync") == 0){
+        }
+        else if (strcmp(strategy, "mutex") == 0) {
+            if (pthread_mutex_destroy(&inode_table[i].mutex) != 0) {
+                perror("Error destroying global mutexes!\n");
+                exit(1);
+            }
+        }
+        else if (strcmp(strategy, "rwlock") == 0) {
+            if (pthread_rwlock_destroy(&inode_table[i].rwlock) != 0) {
+                perror("Error destroying the rwlocks!\n");
+                exit(1);
+            }
+        }
+        else {
+            perror("Unknown strategy utilized\n");
+            exit(1);
         }
     }
 }
@@ -116,7 +164,7 @@ int inode_create(type nType, char strategy[7]){
     insert_delay(DELAY);
 
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
-        mutex_and_wrlock(inumber, strategy);
+        mutex_and_write_lock(inumber, strategy);
         if (inode_table[inumber].nodeType == T_NONE) {
             inode_table[inumber].nodeType = nType;
 
@@ -146,7 +194,7 @@ int inode_create(type nType, char strategy[7]){
  * Returns: SUCCESS or FAIL
  */
 int inode_delete(int inumber, char strategy[7]) {
-    mutex_and_wrlock(inumber, strategy);
+    mutex_and_write_lock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -175,7 +223,7 @@ int inode_delete(int inumber, char strategy[7]) {
  * Returns: SUCCESS or FAIL
  */
 int inode_get(int inumber, type *nType, union Data *data, char strategy[7]) {
-    mutex_and_rdlock(inumber, strategy);
+    mutex_and_read_lock(inumber, strategy);
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
@@ -203,7 +251,7 @@ int inode_get(int inumber, type *nType, union Data *data, char strategy[7]) {
  * Returns: SUCCESS or FAIL
  */
 int dir_reset_entry(int inumber, int sub_inumber, char strategy[7]) {
-    mutex_and_wrlock(inumber, strategy);
+    mutex_and_write_lock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
@@ -248,7 +296,7 @@ int dir_reset_entry(int inumber, int sub_inumber, char strategy[7]) {
  * Returns: SUCCESS or FAIL
  */
 int dir_add_entry(int inumber, int sub_inumber, char *sub_name, char strategy[7]) {
-    mutex_and_wrlock(inumber, strategy);
+    mutex_and_write_lock(inumber, strategy);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 

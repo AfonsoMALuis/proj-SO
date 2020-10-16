@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
     }
     struct timeval start, end;
     /* init filesystem */
-    init_fs();
+    init_fs(argv[4]);
 
     /* process input and print tree */
     FILE *inputFile, *outputFile;
@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
     fclose(outputFile);
 
     /* release allocated memory */
-    destroy_fs();
+    destroy_fs(argv[4]);
     gettimeofday(&end, NULL);
     printf("TecnicoFS completed in %.4lf seconds\n",
            ((end.tv_sec + end.tv_usec * (1e-6))) -

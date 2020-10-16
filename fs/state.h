@@ -47,8 +47,8 @@ typedef struct inode_t {
 
 
 void insert_delay(int cycles);
-void inode_table_init();
-void inode_table_destroy();
+void inode_table_init(char strategy[7]);
+void inode_table_destroy(char strategy [7]);
 int inode_create(type nType, char strategy[7]);
 int inode_delete(int inumber, char strategy[7]);
 int inode_get(int inumber, type *nType, union Data *data, char strategy[7]);
