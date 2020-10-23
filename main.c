@@ -95,7 +95,7 @@ void processInput(FILE *inputFile){
     }
 }
 
-void applyCommands(char *strategy){
+void applyCommands(){
     while (1){
         const char* command = removeCommand();
         if (command == NULL){
