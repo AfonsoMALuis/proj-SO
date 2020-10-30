@@ -152,6 +152,10 @@ int main(int argc, char* argv[]) {
         printf("A função tem de ter 4 argumentos\n");
         return (-1);
     }
+    if (argv[3] < 1){
+        printf("A função tem de ter pelo menos uma thread\n");
+        return (-1);
+    }
     struct timeval start, end;
     /* init filesystem */
     init_fs();
@@ -181,17 +185,23 @@ int main(int argc, char* argv[]) {
         }
     }
     for (i=0; i<numThreads; i++){
-        pthread_join(tid[i], NULL);
+        if (pthread_join(tid[i], NULL) != 0){
+            printf("Erro ao dar joind da tarefa.\n");
+            return 1;
+        }
     }
-    //applyCommands((int) argv[3]);
+    gettimeofday(&end, NULL);
     //-----------------Fim de execucao de Tarefas------------------------------
     outputFile = fopen(argv[2], "w");
+    if(inputFile == NULL) {
+        perror("Error creating file");
+        return(-1);
+    }
     print_tecnicofs_tree(outputFile);
     fclose(outputFile);
 
     /* release allocated memory */
     destroy_fs();
-    gettimeofday(&end, NULL);
     printf("TecnicoFS completed in %.4lf seconds\n",
            ((end.tv_sec + end.tv_usec * (1e-6))) -
             (start.tv_sec + start.tv_usec * (1e-6)));
