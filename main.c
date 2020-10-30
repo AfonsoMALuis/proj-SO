@@ -30,11 +30,13 @@ char* removeCommand() {
     }
     if(numberCommands > 0){
         numberCommands--;
+        char* commandReturn;
+        strcpy(commandReturn, inputCommands[headQueue++]);
         if (pthread_mutex_unlock(&mutexCommands) != 0){
             perror("Error unlocking commands mutex!");
             exit(1);
         }
-        return inputCommands[headQueue++];
+        return commandReturn;
     }
     if (pthread_mutex_unlock(&mutexCommands) != 0){
         perror("Error unlocking commands mutex!");
