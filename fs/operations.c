@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+
+int readlocks[MAX_DIR_ENTRIES*150000];
+
 /* Given a path, fills pointers with strings for the parent path and child
  * file name
  * Input:
@@ -100,6 +103,8 @@ int lookup_sub_node(char *name, DirEntry *entries) {
 	}
 	for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
         if (entries[i].inumber != FREE_INODE && strcmp(entries[i].name, name) == 0) {
+            readlocks[i] = entries[i].inumber;
+            //printf("%d\n", readlocks[i]);
             return entries[i].inumber;
         }
     }
