@@ -30,8 +30,7 @@ char* removeCommand() {
     }
     if(numberCommands > 0){
         numberCommands--;
-        char* commandReturn;
-        strcpy(commandReturn, inputCommands[headQueue++]);
+        char* commandReturn = inputCommands[headQueue++];
         if (pthread_mutex_unlock(&mutexCommands) != 0){
             perror("Error unlocking commands mutex!");
             exit(1);
@@ -150,11 +149,13 @@ void applyCommands(){
 }
 
 int main(int argc, char* argv[]) {
+    int numThreads;
+    numThreads = atoi(argv[3]);
     if (argc != 4){
         printf("A função tem de ter 4 argumentos\n");
         return (-1);
     }
-    if (argv[3] < 1){
+    if (numThreads < 1){
         printf("A função tem de ter pelo menos uma thread\n");
         return (-1);
     }
@@ -169,16 +170,15 @@ int main(int argc, char* argv[]) {
         perror("Error opening file");
         return(-1);
     }
+    gettimeofday(&start, NULL);
     processInput(inputFile);
     fclose(inputFile);
-    gettimeofday(&start, NULL);
     //-----------------------Criacao de Tarefas--------------------------------
     if (pthread_mutex_init(&mutexCommands, NULL) != 0){
         perror("Error initializing global mutexes!\n");
         exit(1);
     }
-    int i, numThreads;
-    numThreads = atoi(argv[3]);
+    int i;
     pthread_t tid[numThreads];
     for (i=0; i<numThreads; i++) {
         if (pthread_create (&tid[i], NULL, (void *(*)(void *)) applyCommands, NULL) != 0){
