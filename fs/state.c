@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <errno.h>
 #include "state.h"
 #include "../tecnicofs-api-constants.h"
 
@@ -13,12 +14,11 @@ inode_t inode_table[INODE_TABLE_SIZE];
  * Locks mutexes/wrlocks
  */
 void write_lock (int inumber) {
-    /*if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0) {
+    int ver = pthread_rwlock_trywrlock(&inode_table[inumber].rwlock);
+    if ( ver == EBUSY) {
+    } else if (ver == EINVAL) {
         perror("Error locking inode_t wrlock!");
         exit(1);
-    }*/
-    if (pthread_rwlock_trywrlock(&inode_table[inumber].rwlock) != 0) {
-
     }
 }
 
@@ -26,7 +26,9 @@ void write_lock (int inumber) {
  * Locks mutexes/rdlocks
  */
 void read_lock(int inumber) {
-    if (pthread_rwlock_rdlock(&inode_table[inumber].rwlock) != 0) {
+    int ver = pthread_rwlock_tryrdlock(&inode_table[inumber].rwlock);
+    if ( ver == EBUSY) {
+    } else if (ver == EINVAL) {
         perror("Error locking inode_t rdlock!");
         exit(1);
     }
