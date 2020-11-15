@@ -13,9 +13,12 @@ inode_t inode_table[INODE_TABLE_SIZE];
  * Locks mutexes/wrlocks
  */
 void write_lock (int inumber) {
-    if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0) {
-        perror("Error locking inode_t rwlock!");
+    /*if (pthread_rwlock_wrlock(&inode_table[inumber].rwlock) != 0) {
+        perror("Error locking inode_t wrlock!");
         exit(1);
+    }*/
+    if (pthread_rwlock_trywrlock(&inode_table[inumber].rwlock) != 0) {
+
     }
 }
 
@@ -24,7 +27,7 @@ void write_lock (int inumber) {
  */
 void read_lock(int inumber) {
     if (pthread_rwlock_rdlock(&inode_table[inumber].rwlock) != 0) {
-        perror("Error locking inode_t rwlock!");
+        perror("Error locking inode_t rdlock!");
         exit(1);
     }
 }
@@ -95,7 +98,9 @@ int inode_create(type nType){
     insert_delay(DELAY);
 
     for (int inumber = 0; inumber < INODE_TABLE_SIZE; inumber++) {
-        write_lock(inumber);
+        if (pthread_rwlock_trywrlock(&inode_table[inumber].rwlock) != 0) {
+            continue;
+        }
         if (inode_table[inumber].nodeType == T_NONE) {
             inode_table[inumber].nodeType = nType;
 
@@ -106,8 +111,7 @@ int inode_create(type nType){
                 for (int i = 0; i < MAX_DIR_ENTRIES; i++) {
                     inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
                 }
-            }
-            else {
+            } else {
                 inode_table[inumber].data.fileContents = NULL;
             }
             unlock(inumber);
@@ -125,13 +129,13 @@ int inode_create(type nType){
  * Returns: SUCCESS or FAIL
  */
 int inode_delete(int inumber) {
-    write_lock(inumber);
+    //write_lock(inumber);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_delete: invalid inumber\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
@@ -140,7 +144,7 @@ int inode_delete(int inumber) {
     if (inode_table[inumber].data.dirEntries)
         free(inode_table[inumber].data.dirEntries);
 
-    unlock(inumber);
+    //unlock(inumber);
     return SUCCESS;
 }
 
@@ -154,12 +158,12 @@ int inode_delete(int inumber) {
  * Returns: SUCCESS or FAIL
  */
 int inode_get(int inumber, type *nType, union Data *data) {
-    read_lock(inumber);
+    //read_lock(inumber);
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_get: invalid inumber %d\n", inumber);
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
@@ -169,7 +173,7 @@ int inode_get(int inumber, type *nType, union Data *data) {
     if (data)
         *data = inode_table[inumber].data;
 
-    unlock(inumber);
+    //unlock(inumber);
     return SUCCESS;
 }
 
@@ -182,25 +186,25 @@ int inode_get(int inumber, type *nType, union Data *data) {
  * Returns: SUCCESS or FAIL
  */
 int dir_reset_entry(int inumber, int sub_inumber) {
-    write_lock(inumber);
+    //write_lock(inumber);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid inumber\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_reset_entry: can only reset entry to directories\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
     if ((sub_inumber < FREE_INODE) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_reset_entry: invalid entry inumber\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
@@ -209,11 +213,11 @@ int dir_reset_entry(int inumber, int sub_inumber) {
         if (inode_table[inumber].data.dirEntries[i].inumber == sub_inumber) {
             inode_table[inumber].data.dirEntries[i].inumber = FREE_INODE;
             inode_table[inumber].data.dirEntries[i].name[0] = '\0';
-            unlock(inumber);
+            //unlock(inumber);
             return SUCCESS;
         }
     }
-    unlock(inumber);
+    //unlock(inumber);
     return FAIL;
 }
 
@@ -227,31 +231,31 @@ int dir_reset_entry(int inumber, int sub_inumber) {
  * Returns: SUCCESS or FAIL
  */
 int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
-    write_lock(inumber);
+    //write_lock(inumber);
     /* Used for testing synchronization speedup */
     insert_delay(DELAY);
 
     if ((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid inumber\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
     if (inode_table[inumber].nodeType != T_DIRECTORY) {
         printf("inode_add_entry: can only add entry to directories\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
     if ((sub_inumber < 0) || (sub_inumber > INODE_TABLE_SIZE) || (inode_table[sub_inumber].nodeType == T_NONE)) {
         printf("inode_add_entry: invalid entry inumber\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
     if (strlen(sub_name) == 0 ) {
         printf("inode_add_entry: entry name must be non-empty\n");
-        unlock(inumber);
+        //unlock(inumber);
         return FAIL;
     }
 
@@ -259,11 +263,11 @@ int dir_add_entry(int inumber, int sub_inumber, char *sub_name) {
         if (inode_table[inumber].data.dirEntries[i].inumber == FREE_INODE) {
             inode_table[inumber].data.dirEntries[i].inumber = sub_inumber;
             strcpy(inode_table[inumber].data.dirEntries[i].name, sub_name);
-            unlock(inumber);
+            //unlock(inumber);
             return SUCCESS;
         }
     }
-    unlock(inumber);
+    //unlock(inumber);
     return FAIL;
 }
 
