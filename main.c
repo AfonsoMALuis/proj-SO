@@ -90,7 +90,11 @@ void processInput(FILE *inputFile){
                 break;
 
             case 'm':
-                break;
+                if (numTokens != 3)
+                    errorParse();
+                if(insertCommand(line))
+                    break;
+                return;
 
             default: { /* error */
                 errorParse();
@@ -108,14 +112,18 @@ void applyCommands(){
 
 
         char token, type;
-        char name[MAX_INPUT_SIZE];
-        int numTokens = sscanf(command, "%c %s %c", &token, name, &type);
+        char name[MAX_INPUT_SIZE], name_origin[MAX_INPUT_SIZE], name_destiny[MAX_INPUT_SIZE];
+        int numTokens;
+        if (command[0] == 'm')
+            numTokens = sscanf(command, "%c %s %s", &token, name_origin, name_destiny);
+        else
+            numTokens = sscanf(command, "%c %s %c", &token, name, &type);
         if (numTokens < 2) {
             fprintf(stderr, "Error: invalid command in Queue\n");
             exit(EXIT_FAILURE);
         }
 
-        int searchResult;
+        int searchResult, moveResult;
         switch (token) {
             case 'c':
                 switch (type) {
@@ -142,6 +150,17 @@ void applyCommands(){
             case 'd':
                 printf("Delete: %s\n", name);
                 delete(name);
+                break;
+            case 'm':
+                moveResult = move(name_origin, name_destiny);
+                /*puts(name_origin);
+                puts(name_destiny);*/
+                if (moveResult == 1)
+                    printf("Impossible to move, the file/directory %s doesn't exist\n", name_origin);
+                else if (moveResult == 2)
+                    printf("Impossible to move, the file/directory %s already exists\n", name_destiny);
+                else if (moveResult == 0)
+                    printf("Moved from: %s to %s\n", name_origin, name_destiny);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");

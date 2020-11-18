@@ -9,6 +9,7 @@ int create(char *name, type nodeType);
 int delete(char *name);
 int lookup(char *name);
 int lookup_aux(char *name, int *nodeArray, const int *indice);
+int move(char *name_origin, char *name_destiny);
 void print_tecnicofs_tree(FILE *fp);
 
 #endif /* FS_H */

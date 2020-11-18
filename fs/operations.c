@@ -370,6 +370,16 @@ int lookup_aux(char *name, int *nodeArray, const int *indice){//, int *nodeArray
     return current_inumber;
 }
 
+int move(char *name_origin, char *name_destiny){
+    int originNumber = lookup(name_origin);
+    if(originNumber < 0)
+        return 1;
+    int destinyNumber = lookup(name_destiny);
+    if(destinyNumber >= 0)
+        return 2;
+    inode_move(originNumber, name_origin, name_destiny);
+    return 0;
+}
 
 /*
  * Prints tecnicofs tree.
