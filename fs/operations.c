@@ -115,7 +115,7 @@ int lookup_sub_node(char *name, DirEntry *entries) {
  * Returns: SUCCESS or FAIL
  */
 int create(char *name, type nodeType){
-	int parent_inumber, child_inumber;
+	int parent_inumber, child_inumber, node_array[100], indice=0;
 	char *parent_name, *child_name, name_copy[MAX_FILE_NAME];
 	/* use for copy */
 	type pType;
@@ -123,23 +123,38 @@ int create(char *name, type nodeType){
 
 	strcpy(name_copy, name);
 	split_parent_child_from_path(name_copy, &parent_name, &child_name);
-	parent_inumber = lookup(parent_name);
+	parent_inumber = lookup_aux(parent_name, (int *) &node_array, &indice);
 	if (parent_inumber == FAIL) {
 		printf("failed to create %s, invalid parent dir %s\n",
 		        name, parent_name);
+		while (indice > -1){
+		    unlock(node_array[indice]);
+		    indice--;
+		}
 		return FAIL;
 	}
+	//write_lock(parent_inumber);
 	inode_get(parent_inumber, &pType, &pdata);
 
 	if(pType != T_DIRECTORY) {
 		printf("failed to create %s, parent %s is not a dir\n",
 		        name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+		//unlock(parent_inumber);
 		return FAIL;
 	}
 
 	if (lookup_sub_node(child_name, pdata.dirEntries) != FAIL) {
 		printf("failed to create %s, already exists in dir %s\n",
 		       child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        //unlock(parent_inumber);
 		return FAIL;
 	}
 
@@ -148,15 +163,29 @@ int create(char *name, type nodeType){
 	if (child_inumber == FAIL) {
 		printf("failed to create %s in  %s, couldn't allocate inode\n",
 		        child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
 
 	if (dir_add_entry(parent_inumber, child_inumber, child_name) == FAIL) {
 		printf("could not add entry %s in dir %s\n",
 		       child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
-
+    while (indice > -1){
+        unlock(node_array[indice]);
+        indice--;
+    }
+    unlock(child_inumber);
 	return SUCCESS;
 }
 
@@ -169,7 +198,7 @@ int create(char *name, type nodeType){
  */
 int delete(char *name){
 
-	int parent_inumber, child_inumber;
+	int parent_inumber, child_inumber, node_array[100], indice=0;
 	char *parent_name, *child_name, name_copy[MAX_FILE_NAME];
 	/* use for copy */
 	type pType, cType;
@@ -178,11 +207,15 @@ int delete(char *name){
 	strcpy(name_copy, name);
 	split_parent_child_from_path(name_copy, &parent_name, &child_name);
 
-	parent_inumber = lookup(parent_name);
+	parent_inumber = lookup_aux(parent_name, (int *) &node_array, &indice);
 
 	if (parent_inumber == FAIL) {
 		printf("failed to delete %s, invalid parent dir %s\n",
 		        child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
 		return FAIL;
 	}
 
@@ -191,14 +224,24 @@ int delete(char *name){
 	if(pType != T_DIRECTORY) {
 		printf("failed to delete %s, parent %s is not a dir\n",
 		        child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
 		return FAIL;
 	}
 
 	child_inumber = lookup_sub_node(child_name, pdata.dirEntries);
+	write_lock(child_inumber);
 
 	if (child_inumber == FAIL) {
 		printf("could not delete %s, does not exist in dir %s\n",
 		       name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
 
@@ -207,6 +250,11 @@ int delete(char *name){
 	if (cType == T_DIRECTORY && is_dir_empty(cdata.dirEntries) == FAIL) {
 		printf("could not delete %s: is a directory and not empty\n",
 		       name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
 
@@ -214,15 +262,29 @@ int delete(char *name){
 	if (dir_reset_entry(parent_inumber, child_inumber) == FAIL) {
 		printf("failed to delete %s from dir %s\n",
 		       child_name, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
 
 	if (inode_delete(child_inumber) == FAIL) {
 		printf("could not delete inode number %d from dir %s\n",
 		       child_inumber, parent_name);
+        while (indice > -1){
+            unlock(node_array[indice]);
+            indice--;
+        }
+        unlock(child_inumber);
 		return FAIL;
 	}
-
+    while (indice > -1){
+        unlock(node_array[indice]);
+        indice--;
+    }
+    unlock(child_inumber);
 	return SUCCESS;
 }
 
@@ -235,7 +297,39 @@ int delete(char *name){
  *  inumber: identifier of the i-node, if found
  *     FAIL: otherwise
  */
-int lookup(char *name) {
+int lookup(char *name){
+    char full_path[MAX_FILE_NAME];
+    char delim[] = "/";
+
+    strcpy(full_path, name);
+
+    /* start at root node */
+    int current_inumber = FS_ROOT;
+
+    /* use for copy */
+    type nType;
+    union Data data;
+    /* get root inode data */
+    inode_get(current_inumber, &nType, &data);
+
+    char *saveptr;
+    char *path = strtok_r(full_path, delim, &saveptr);
+
+    /* search for all sub nodes */
+    while (path != NULL && (current_inumber = lookup_sub_node(path, data.dirEntries)) != FAIL) {
+        read_lock(current_inumber);
+        inode_get(current_inumber, &nType, &data);
+        unlock(current_inumber);
+        path = strtok_r(NULL, delim, &saveptr);
+    }
+
+    return current_inumber;
+}
+
+
+int lookup_aux(char *name, int *nodeArray, const int *indice){//, int *nodeArray, int indice) { passar a ser auxiliar para poder registar que nos foram locked, usar array de inteiros (criado no create)
+    // com o inumber de cada no, e *variavel de indice que incrementa
+    // e criar um lookup de topo com parametros adequados
 	char full_path[MAX_FILE_NAME];
 	char delim[] = "/";
 
@@ -248,18 +342,32 @@ int lookup(char *name) {
 	type nType;
 	union Data data;
 	/* get root inode data */
+	int indice_aux=0;
+	nodeArray[0]=FS_ROOT;
+	read_lock(FS_ROOT);
 	inode_get(current_inumber, &nType, &data);
 
-    char *saveptr;
+    char *saveptr, *saveptr1;
     char *path = strtok_r(full_path, delim, &saveptr);
+    char *path_aux = strtok_r(full_path, delim, &saveptr1);
 
 	/* search for all sub nodes */
-	while (path != NULL && (current_inumber = lookup_sub_node(path, data.dirEntries)) != FAIL) {
+	while (path != NULL && (current_inumber = lookup_sub_node(path, data.dirEntries)) != FAIL) {//verificar se é o ultimo path (sera NULL) e se for faer um write lock caso contrario fazer so read lock
+	    indice_aux++;
+        path_aux = strtok_r(NULL, delim, &saveptr1);
+	    if (path_aux == NULL){
+	        write_lock(current_inumber);
+	        nodeArray[indice_aux]=current_inumber;
+	    } else{
+	        read_lock(current_inumber);
+            nodeArray[indice_aux]=current_inumber;
+	    }
 		inode_get(current_inumber, &nType, &data);
 		path = strtok_r(NULL, delim, &saveptr);
 	}
+	indice = &indice_aux;
 
-	return current_inumber;
+    return current_inumber;
 }
 
 

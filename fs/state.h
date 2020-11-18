@@ -44,7 +44,9 @@ typedef struct inode_t {
     /* more i-node attributes will be added in future exercises */
 } inode_t;
 
-
+void write_lock (int inumber);
+void read_lock(int inumber);
+void unlock (int inumber);
 void insert_delay(int cycles);
 void inode_table_init();
 void inode_table_destroy();

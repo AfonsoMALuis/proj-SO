@@ -89,6 +89,9 @@ void processInput(FILE *inputFile){
             case '#':
                 break;
 
+            case 'm':
+                break;
+
             default: { /* error */
                 errorParse();
             }
