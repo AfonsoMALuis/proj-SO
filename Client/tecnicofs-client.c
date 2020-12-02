@@ -21,7 +21,7 @@ static void parseArgs (long argc, char* const argv[]) {
 
     inputFile = fopen(argv[1], "r");
 
-    if (inputFile== NULL) {
+    if (inputFile == NULL) {
         fprintf(stderr, "Error: cannot open input file\n");
         exit(EXIT_FAILURE);
     }
