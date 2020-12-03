@@ -13,7 +13,7 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
-pthread_mutex_t mutexCommands;
+pthread_rwlock_t printLock;
 int sockfd;
 
 int setSockAddrUn(char *path, struct sockaddr_un *addr) {
@@ -38,8 +38,8 @@ void applyCommands(){
     while (1){
 
         struct sockaddr_un client_addr;
-        char in_buffer[MAX_INPUT_SIZE], out_buffer[10];
-        int c;
+        char in_buffer[MAX_INPUT_SIZE];
+        int out_buffer, c;
         socklen_t addrlenThread;
 
         addrlenThread = sizeof(struct sockaddr_un);
@@ -59,53 +59,74 @@ void applyCommands(){
             fprintf(stderr, "Error: invalid command in Queue\n");
             exit(EXIT_FAILURE);
         }
+        FILE *outPutFile;
+
 
         int searchResult, moveResult;
         switch (token) {
             case 'c':
+                pthread_rwlock_rdlock(&printLock);
                 switch (type) {
                     case 'f':
                         printf("Create file: %s\n", name);
-                        sprintf(out_buffer, "%d", create(name, T_FILE));
-                        strcat(out_buffer, "\0");
-                        //puts(out_buffer);
-                        sendto(sockfd, out_buffer, strlen(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
-                        //puts("acabei o sendto");
+                        out_buffer = create(name, T_FILE);
+                        sendto(sockfd, &out_buffer, sizeof(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
                         break;
                     case 'd':
                         printf("Create directory: %s\n", name);
-                        sprintf(out_buffer, "%d", create(name, T_DIRECTORY));
-                        sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
+                        out_buffer = create(name, T_DIRECTORY);
+                        sendto(sockfd, &out_buffer, sizeof(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
                         break;
                     default:
                         fprintf(stderr, "Error: invalid node type\n");
                         exit(EXIT_FAILURE);
                 }
+                pthread_rwlock_unlock(&printLock);
                 break;
             case 'l':
+                pthread_rwlock_rdlock(&printLock);
                 searchResult = lookup(name);
-                sprintf(out_buffer, "%d", searchResult);
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
+                sendto(sockfd, &searchResult, sizeof(searchResult), 0, (struct sockaddr *)&client_addr, addrlenThread);
                 if (searchResult >= 0)
                     printf("Search: %s found\n", name);
                 else
                     printf("Search: %s not found\n", name);
+                pthread_rwlock_unlock(&printLock);
                 break;
             case 'd':
-                printf("Delete: %s\n", name);
-                sprintf(out_buffer, "%d", delete(name));
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
+                pthread_rwlock_rdlock(&printLock);
+                out_buffer = delete(name);
+                sendto(sockfd, &out_buffer, sizeof(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
+                pthread_rwlock_unlock(&printLock);
                 break;
             case 'm':
+                pthread_rwlock_rdlock(&printLock);
                 moveResult = move(name_origin, name_destiny);
-                sprintf(out_buffer, "%d", moveResult);
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
+                sendto(sockfd, &moveResult, sizeof(moveResult), 0, (struct sockaddr *)&client_addr, addrlenThread);
                 if (moveResult == 1)
                     printf("Impossible to move, the file/directory %s doesn't exist\n", name_origin);
                 else if (moveResult == 2)
                     printf("Impossible to move, the file/directory %s already exists\n", name_destiny);
                 else if (moveResult == 0)
                     printf("Moved from: %s to %s\n", name_origin, name_destiny);
+                pthread_rwlock_unlock(&printLock);
+                break;
+            case 'p':
+                pthread_rwlock_wrlock(&printLock);
+                outPutFile = fopen(name, "w");
+                if(outPutFile == NULL) {
+                    perror("Error creating file");
+                    printf("Unable to print the tree state to: %s\n", name);
+                    out_buffer = -1;
+                }
+                else {
+                    print_tecnicofs_tree(outPutFile);
+                    fclose(outPutFile);
+                    printf("Printed the tree state to: %s\n", name);
+                    out_buffer = 0;
+                }
+                sendto(sockfd, &out_buffer, sizeof(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
+                pthread_rwlock_unlock(&printLock);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -147,7 +168,7 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
     //-----------------------Criacao de Tarefas--------------------------------
-    if (pthread_mutex_init(&mutexCommands, NULL) != 0){
+    if (pthread_rwlock_init(&printLock, NULL) != 0){
         perror("Error initializing global mutexes!\n");
         exit(1);
     }

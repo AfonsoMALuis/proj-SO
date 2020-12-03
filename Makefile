@@ -39,5 +39,5 @@ Client/tecnicofs-client-api.o: Client/tecnicofs-client-api.c tecnicofs-api-const
 
 clean:
 	@echo Cleaning...
-	rm -f Server/fs/*.o Server/*.o Client/*.o Server/tecnicofs Client/tecnicofs-client
+	rm -f Server/fs/*.o Server/*.o Client/*.o Server/tecnicofs Client/tecnicofs-client *.txt
 
