@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 #include "fs/operations.h"
 
 #define MAX_COMMANDS 150000
@@ -14,7 +15,6 @@
 
 pthread_mutex_t mutexCommands;
 int sockfd;
-socklen_t addrlen;
 
 int setSockAddrUn(char *path, struct sockaddr_un *addr) {
 
@@ -40,8 +40,12 @@ void applyCommands(){
         struct sockaddr_un client_addr;
         char in_buffer[MAX_INPUT_SIZE], out_buffer[10];
         int c;
+        socklen_t addrlenThread;
 
-        c = recvfrom(sockfd, in_buffer, sizeof(in_buffer)-1, 0, (struct sockaddr *)&client_addr, &addrlen);
+        addrlenThread = sizeof(struct sockaddr_un);
+        c = recvfrom(sockfd, in_buffer, sizeof(in_buffer)-1, 0, (struct sockaddr *)&client_addr, &addrlenThread);
+        in_buffer[c] = '\0';
+        //puts(in_buffer);
 
 
         char token, type;
@@ -63,12 +67,15 @@ void applyCommands(){
                     case 'f':
                         printf("Create file: %s\n", name);
                         sprintf(out_buffer, "%d", create(name, T_FILE));
-                        sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlen);
+                        strcat(out_buffer, "\0");
+                        //puts(out_buffer);
+                        sendto(sockfd, out_buffer, strlen(out_buffer), 0, (struct sockaddr *)&client_addr, addrlenThread);
+                        //puts("acabei o sendto");
                         break;
                     case 'd':
                         printf("Create directory: %s\n", name);
                         sprintf(out_buffer, "%d", create(name, T_DIRECTORY));
-                        sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlen);
+                        sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
                         break;
                     default:
                         fprintf(stderr, "Error: invalid node type\n");
@@ -78,7 +85,7 @@ void applyCommands(){
             case 'l':
                 searchResult = lookup(name);
                 sprintf(out_buffer, "%d", searchResult);
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlen);
+                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
                 if (searchResult >= 0)
                     printf("Search: %s found\n", name);
                 else
@@ -87,12 +94,12 @@ void applyCommands(){
             case 'd':
                 printf("Delete: %s\n", name);
                 sprintf(out_buffer, "%d", delete(name));
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlen);
+                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
                 break;
             case 'm':
                 moveResult = move(name_origin, name_destiny);
                 sprintf(out_buffer, "%d", moveResult);
-                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlen);
+                sendto(sockfd, out_buffer, c+1, 0, (struct sockaddr *)&client_addr, addrlenThread);
                 if (moveResult == 1)
                     printf("Impossible to move, the file/directory %s doesn't exist\n", name_origin);
                 else if (moveResult == 2)
@@ -124,6 +131,7 @@ int main(int argc, char* argv[]) {
 
     struct sockaddr_un server_addr;
     char *socketName;
+    socklen_t addrlen;
 
     if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         perror("server: can't open socket");
@@ -131,6 +139,7 @@ int main(int argc, char* argv[]) {
     }
 
     socketName = argv[2];
+    unlink(socketName);
 
     addrlen = setSockAddrUn (socketName, &server_addr);
     if (bind(sockfd, (struct sockaddr *) &server_addr, addrlen) < 0) {

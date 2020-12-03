@@ -6,7 +6,7 @@
 #include <sys/un.h>
 #include <stdio.h>
 
-char buffer[1024];
+char buffer[10];
 char *socketName;
 int sockfd;
 socklen_t servlen, clilen;
@@ -31,6 +31,7 @@ int tfsCreate(char *filename, char nodeType) {
     strcat(newString, filename);
     strcat(newString, " ");
     strcat(newString, &nodeType);
+    strcat(newString, "\0");
     if (sendto(sockfd, newString, strlen(newString) + 1, 0, (struct sockaddr *) &serv_addr, servlen) < 0) {
         perror("client: sendto error");
         exit(EXIT_FAILURE);
@@ -48,12 +49,13 @@ int tfsDelete(char *path) {
     char newString[MAX_INPUT_SIZE];
     strcpy(newString, "d ");
     strcat(newString, path);
+    strcat(newString, "\0");
     if (sendto(sockfd, newString, strlen(newString) + 1, 0, (struct sockaddr *) &serv_addr, servlen) < 0) {
         perror("client: sendto error");
         exit(EXIT_FAILURE);
     }
 
-    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, 0, 0) < 0) {
+    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, &servlen) < 0) {
         perror("client: recvfrom error");
         exit(EXIT_FAILURE);
     }
@@ -67,12 +69,13 @@ int tfsMove(char *from, char *to) {
     strcat(newString, from);
     strcat(newString, " ");
     strcat(newString, to);
+    strcat(newString, "\0");
     if (sendto(sockfd, newString, strlen(newString) + 1, 0, (struct sockaddr *) &serv_addr, servlen) < 0) {
         perror("client: sendto error");
         exit(EXIT_FAILURE);
     }
 
-    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, 0, 0) < 0) {
+    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, &servlen) < 0) {
         perror("client: recvfrom error");
         exit(EXIT_FAILURE);
     }
@@ -85,12 +88,13 @@ int tfsLookup(char *path) {
     char newString[MAX_INPUT_SIZE];
     strcpy(newString, "l ");
     strcat(newString, path);
+    strcat(newString, "\0");
     if (sendto(sockfd, newString, strlen(newString) + 1, 0, (struct sockaddr *) &serv_addr, servlen) < 0) {
         perror("client: sendto error");
         exit(EXIT_FAILURE);
     }
 
-    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, 0, 0) < 0) {
+    if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, &servlen) < 0) {
         perror("client: recvfrom error");
         exit(EXIT_FAILURE);
     }
@@ -104,12 +108,12 @@ int tfsMount(char *sockPath) {
         return 1;
     }
 
-    socketName = sockPath;
-    clilen = setSockAddrUn(sockPath, &client_addr);
-    /*if (bind(sockfd, (struct sockaddr *) &client_addr, clilen) < 0) {
+    unlink("/tmp/ClientSocket");//FIXME tirar unlink daqui deixar no fim e mudar logica do nome do socket
+    clilen = setSockAddrUn("/tmp/ClientSocket", &client_addr);
+    if (bind(sockfd, (struct sockaddr *) &client_addr, clilen) < 0) {
         perror("client: bind error");
         return 1;
-    }*/
+    }
 
     servlen = setSockAddrUn(sockPath, &serv_addr);
     return 0;
@@ -118,6 +122,6 @@ int tfsMount(char *sockPath) {
 int tfsUnmount() {
     close(sockfd);
 
-    //unlink(socketName);
+    unlink("/tmp/ClientSocket");
     return 0;
 }
