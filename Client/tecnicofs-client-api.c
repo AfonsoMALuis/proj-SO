@@ -92,11 +92,10 @@ int tfsMount(char *sockPath) {
         perror("client: can't open socket");
         return 1;
     }
-    char socketId[10];
-    strcpy(socketNameClient, "/tmp/ClientSocket");
-    sprintf(socketId, "%d", sockfd);
-    strcat(socketNameClient, socketId);
-    //unlink("/tmp/ClientSocket");//FIXME tirar unlink daqui deixar no fim e mudar logica do nome do socket
+
+    int processId = getpid();
+    sprintf(socketNameClient, "/tmp/%d", processId);
+    puts(socketNameClient);
     clilen = setSockAddrUn(socketNameClient, &client_addr);
     if (bind(sockfd, (struct sockaddr *) &client_addr, clilen) < 0) {
         perror("client: bind error");

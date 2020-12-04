@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "tecnicofs-client-api.h"
 #include "../tecnicofs-api-constants.h"
 
