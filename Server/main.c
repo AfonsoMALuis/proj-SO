@@ -45,7 +45,6 @@ void applyCommands(){
         addrlenThread = sizeof(struct sockaddr_un);
         c = recvfrom(sockfd, in_buffer, sizeof(in_buffer)-1, 0, (struct sockaddr *)&client_addr, &addrlenThread);
         in_buffer[c] = '\0';
-        //puts(in_buffer);
 
 
         char token, type;
@@ -167,7 +166,7 @@ int main(int argc, char* argv[]) {
         perror("server: bind error");
         exit(EXIT_FAILURE);
     }
-    //-----------------------Criacao de Tarefas--------------------------------
+    //-----------------------Thread Creation-------------------------------------
     if (pthread_rwlock_init(&printLock, NULL) != 0){
         perror("Error initializing global mutexes!\n");
         exit(1);

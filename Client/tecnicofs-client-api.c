@@ -95,7 +95,7 @@ int tfsMount(char *sockPath) {
 
     int processId = getpid();
     sprintf(socketNameClient, "/tmp/%d", processId);
-    puts(socketNameClient);
+    //puts(socketNameClient);
     clilen = setSockAddrUn(socketNameClient, &client_addr);
     if (bind(sockfd, (struct sockaddr *) &client_addr, clilen) < 0) {
         perror("client: bind error");
